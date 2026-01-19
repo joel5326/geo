@@ -1,27 +1,19 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "name": "geo",
   "buildCommand": "npm run build",
-  "outputDirectory": "dist",
   "installCommand": "npm install",
   "framework": null,
   "regions": ["iad1"],
-  "functions": {
-    "dist/api/server.js": {
-      "memory": 1024,
-      "maxDuration": 30
-    }
-  },
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/api/server.js"
+      "destination": "/api"
     }
   ],
   "headers": [
     {
-      "source": "/api/(.*)",
+      "source": "/(.*)",
       "headers": [
         {
           "key": "Access-Control-Allow-Credentials",
