@@ -1,0 +1,347 @@
+// GEO Platform - Prisma Schema
+// Database: PostgreSQL (Vercel Postgres)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================
+// USER/CUSTOMER DOMAIN
+// ============================================
+
+model Customer {
+  id              String   @id @default(uuid())
+  name            String
+  industry        String
+  websiteUrl      String?  @map("website_url")
+  blogUrl         String?  @map("blog_url")
+  primaryColor    String?  @map("primary_color")
+  secondaryColor  String?  @map("secondary_color")
+  logoUrl         String?  @map("logo_url")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  users           User[]
+  clearStories    ClearStory[]
+  articles        Article[]
+  redditPosts     RedditPost[]
+  brandGuidelines BrandGuideline[]
+  utmCampaigns    UtmCampaign[]
+
+  @@map("customers")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  customerId   String   @map("customer_id")
+  email        String   @unique
+  name         String
+  role         String   @default("member")
+  passwordHash String   @map("password_hash")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  customer     Customer @relation(fields: [customerId], references: [id])
+  agentSessions AgentSession[]
+
+  @@index([customerId])
+  @@map("users")
+}
+
+model BrandGuideline {
+  id          String   @id @default(uuid())
+  customerId  String   @map("customer_id")
+  name        String
+  content     String
+  category    String
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  customer    Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@map("brand_guidelines")
+}
+
+// ============================================
+// CLEAR STORY DOMAIN
+// ============================================
+
+model ClearStory {
+  id          String   @id @default(uuid())
+  customerId  String   @map("customer_id")
+  title       String
+  summary     String
+  source      String
+  sourceUrl   String?  @map("source_url")
+  tags        String   // JSON array stored as string
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  customer    Customer @relation(fields: [customerId], references: [id])
+  beliefs     Belief[]
+  articles    Article[]
+
+  @@index([customerId])
+  @@index([source])
+  @@map("clear_stories")
+}
+
+model Belief {
+  id           String   @id @default(uuid())
+  clearStoryId String   @map("clear_story_id")
+  statement    String
+  evidence     String
+  confidence   Float
+  category     String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  clearStory   ClearStory @relation(fields: [clearStoryId], references: [id])
+
+  @@index([clearStoryId])
+  @@map("beliefs")
+}
+
+// ============================================
+// ARTICLE DOMAIN
+// ============================================
+
+model Article {
+  id              String   @id @default(uuid())
+  customerId      String   @map("customer_id")
+  clearStoryId    String   @map("clear_story_id")
+  title           String
+  slug            String
+  status          String   @default("draft")
+  tone            String
+  targetWordCount Int      @map("target_word_count")
+  publishedUrl    String?  @map("published_url")
+  publishedAt     DateTime? @map("published_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  customer        Customer @relation(fields: [customerId], references: [id])
+  clearStory      ClearStory @relation(fields: [clearStoryId], references: [id])
+  versions        ArticleVersion[]
+  redditPosts     RedditPost[]
+
+  @@unique([customerId, slug])
+  @@index([customerId])
+  @@index([clearStoryId])
+  @@index([status])
+  @@map("articles")
+}
+
+model ArticleVersion {
+  id          String   @id @default(uuid())
+  articleId   String   @map("article_id")
+  version     Int
+  content     String
+  wordCount   Int      @map("word_count")
+  changeNotes String?  @map("change_notes")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  article     Article @relation(fields: [articleId], references: [id])
+
+  @@unique([articleId, version])
+  @@index([articleId])
+  @@map("article_versions")
+}
+
+// ============================================
+// REDDIT DISTRIBUTION DOMAIN
+// ============================================
+
+model RedditPost {
+  id              String   @id @default(uuid())
+  customerId      String   @map("customer_id")
+  articleId       String   @map("article_id")
+  subredditId     String   @map("subreddit_id")
+  title           String
+  summary         String
+  linkUrl         String   @map("link_url")
+  status          String   @default("pending_approval")
+  redditExternalId String? @unique @map("reddit_external_id")
+  postedAt        DateTime? @map("posted_at")
+  upvotes         Int      @default(0)
+  comments        Int      @default(0)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  customer        Customer @relation(fields: [customerId], references: [id])
+  article         Article @relation(fields: [articleId], references: [id])
+  subreddit       Subreddit @relation(fields: [subredditId], references: [id])
+  schedules       Schedule[]
+
+  @@index([customerId])
+  @@index([articleId])
+  @@index([status])
+  @@map("reddit_posts")
+}
+
+model Subreddit {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  displayName     String   @map("display_name")
+  subscribers     Int      @default(0)
+  isActive        Boolean  @default(true) @map("is_active")
+  postingRules    String?  @map("posting_rules")
+  bestPostingTime String?  @map("best_posting_time")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  redditPosts     RedditPost[]
+
+  @@map("subreddits")
+}
+
+// ============================================
+// SCHEDULING DOMAIN
+// ============================================
+
+model Schedule {
+  id            String   @id @default(uuid())
+  redditPostId  String   @map("reddit_post_id")
+  scheduledFor  DateTime @map("scheduled_for")
+  status        String   @default("pending")
+  priority      Int      @default(0)
+  retryCount    Int      @default(0) @map("retry_count")
+  lastError     String?  @map("last_error")
+  executedAt    DateTime? @map("executed_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  redditPost    RedditPost @relation(fields: [redditPostId], references: [id])
+
+  @@index([status])
+  @@index([scheduledFor])
+  @@map("schedules")
+}
+
+// ============================================
+// ANALYTICS DOMAIN
+// ============================================
+
+model UtmCampaign {
+  id          String   @id @default(uuid())
+  customerId  String   @map("customer_id")
+  name        String
+  source      String
+  medium      String
+  campaign    String
+  content     String?
+  term        String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  customer    Customer @relation(fields: [customerId], references: [id])
+  engagementMetrics EngagementMetric[]
+
+  @@index([customerId])
+  @@map("utm_campaigns")
+}
+
+model EngagementMetric {
+  id            String   @id @default(uuid())
+  utmCampaignId String   @map("utm_campaign_id")
+  date          DateTime
+  clicks        Int      @default(0)
+  impressions   Int      @default(0)
+  conversions   Int      @default(0)
+  bounceRate    Float?   @map("bounce_rate")
+  avgTimeOnPage Float?   @map("avg_time_on_page")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  utmCampaign   UtmCampaign @relation(fields: [utmCampaignId], references: [id])
+
+  @@index([utmCampaignId])
+  @@index([date])
+  @@map("engagement_metrics")
+}
+
+model LlmMention {
+  id          String   @id @default(uuid())
+  platform    String
+  query       String
+  response    String
+  mentionType String   @map("mention_type")
+  sentiment   String?
+  url         String?
+  detectedAt  DateTime @default(now()) @map("detected_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([platform])
+  @@index([detectedAt])
+  @@map("llm_mentions")
+}
+
+// ============================================
+// AGENT ORCHESTRATION DOMAIN
+// ============================================
+
+model AgentSession {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  agentType   String   @map("agent_type")
+  status      String   @default("active")
+  context     String   // JSON stored as string
+  startedAt   DateTime @default(now()) @map("started_at")
+  endedAt     DateTime? @map("ended_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user        User @relation(fields: [userId], references: [id])
+  actions     AgentAction[]
+  workflows   Workflow[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("agent_sessions")
+}
+
+model AgentAction {
+  id          String   @id @default(uuid())
+  sessionId   String   @map("session_id")
+  toolName    String   @map("tool_name")
+  input       String   // JSON stored as string
+  output      String?  // JSON stored as string
+  status      String   @default("pending")
+  startedAt   DateTime @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  errorMessage String? @map("error_message")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  session     AgentSession @relation(fields: [sessionId], references: [id])
+
+  @@index([sessionId])
+  @@map("agent_actions")
+}
+
+model Workflow {
+  id          String   @id @default(uuid())
+  sessionId   String   @map("session_id")
+  name        String
+  status      String   @default("pending")
+  steps       String   // JSON array stored as string
+  currentStep Int      @default(0) @map("current_step")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  session     AgentSession @relation(fields: [sessionId], references: [id])
+
+  @@index([sessionId])
+  @@index([status])
+  @@map("workflows")
+}

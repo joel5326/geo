@@ -1,0 +1,45 @@
+{
+  "name": "geo",
+  "version": "1.0.0",
+  "description": "GEO Platform - Content automation and distribution system",
+  "main": "dist/api/server.js",
+  "scripts": {
+    "build": "prisma generate && tsc",
+    "start": "node dist/api/server.js",
+    "dev": "npx tsx src/api/server.ts",
+    "dev:watch": "npx tsx watch src/api/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "npx tsx src/tests/integration.test.ts",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate"
+  },
+  "keywords": [
+    "automation",
+    "content",
+    "reddit",
+    "api",
+    "hono",
+    "geo"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@prisma/client": "^6.0.0",
+    "@vercel/postgres": "^0.10.0",
+    "hono": "^4.6.0",
+    "@hono/node-server": "^1.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "prisma": "^6.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
