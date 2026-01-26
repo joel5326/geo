@@ -91,6 +91,37 @@ app.use('*', async (c, next) => {
   await next();
 });
 
+// API Key authentication middleware
+// Skips auth for public endpoints (health, ready, live, root)
+app.use('/api/*', async (c, next) => {
+  const publicPaths = ['/', '/health', '/ready', '/live'];
+  if (publicPaths.includes(c.req.path)) {
+    return next();
+  }
+
+  const apiKey = c.req.header('X-API-Key') || c.req.header('Authorization')?.replace('Bearer ', '');
+  const validApiKey = process.env.API_KEY;
+
+  // If no API_KEY is configured, allow all requests (development mode)
+  if (!validApiKey) {
+    return next();
+  }
+
+  if (!apiKey || apiKey !== validApiKey) {
+    return c.json(
+      {
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Invalid or missing API key. Provide X-API-Key header or Bearer token.',
+        },
+      },
+      401
+    );
+  }
+
+  await next();
+});
+
 // =============================================================================
 // ROOT AND INFO ENDPOINTS
 // =============================================================================
